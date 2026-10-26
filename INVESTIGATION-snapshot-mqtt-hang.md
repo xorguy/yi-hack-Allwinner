@@ -160,3 +160,57 @@ hexdump -n 32 /dev/shm/fshare_frame_buf   # run twice; unchanged = buffer stalle
 cat /home/yi-hack/etc/camera.conf | grep SWITCH_ON
 free; df -h /tmp
 ```
+### On-Device Diagnostics
+
+Data collected from a camera that was in the "snapshots and MQTT motion messages stop until reboot" state.
+
+For `ps | grep -e imggrabber -e mqttv4 -e rmm` I got:
+```ini
+ 1437 root     53492 S    ./rmm
+ 1702 root      1440 S    mqttv4
+ 3068 root      4204 S    imggrabber -m r35gb -r low -w
+18318 root       972 S    {grep} /tmp/sd/yi-hack/bin/busybox /tmp/sd/yi-hack/bin/grep -e imggrabber -e mqttv4 -e rmm
+```
+
+For `cat /proc/$(pidof mqttv4)/status | grep -e State -e Threads` I got:
+
+```ini
+State:	S (sleeping)
+Threads:	2
+```
+
+For `ls -l /proc/$(pidof mqttv4)/fd` , with no `wc -l` because there is no wc command, I got:
+```ini
+lr-x------    1 root     root            64 Oct 26 14:11 0 -> /dev/null
+l-wx------    1 root     root            64 Oct 26 14:11 1 -> /dev/null
+lrwx------    1 root     root            64 Oct 26 14:11 2 -> /dev/null
+lrwx------    1 root     root            64 Oct 26 14:11 3 -> socket:[2296]
+lrwx------    1 root     root            64 Oct 26 14:11 4 -> /ipc_dispatch_1
+```ini
+
+For `hexdump -n 32 /dev/shm/fshare_frame_buf` , run twice, I got:
+
+```ini
+root@YiDome-Terraza-Principal:~# hexdump -n 32 /dev/shm/fshare_frame_buf
+0000000 0000 0000 3fb0 001b ece2 0002 7523 0019
+0000010 7573 0019 1f61 788e 97f8 001b 0000 0000
+0000020
+
+root@YiDome-Terraza-Principal:~# hexdump -n 32 /dev/shm/fshare_frame_buf
+0000000 0000 0000 3162 0019 ece2 0002 0c35 0002
+0000010 1ad3 0004 691e 788e 9c76 001b 0000 0000
+0000020
+```
+so, the buffer is not stalled, it is changing between the two reads.
+
+For `cat /tmp/sd/yi-hack/etc/camera.conf | grep SWITCH_ON` I got:
+```ini
+SWITCH_ON=yes
+```
+
+For `free; df -h /tmp` I got:
+```ini
+              total        used        free      shared  buff/cache   available
+Mem:          60676       45232        8704        1980        6740       12436
+Swap:         65532        1088       64444
+```
